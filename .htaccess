@@ -3,12 +3,5 @@
 # Data Warehouse Eleitoral
 # =========================================================================
 
-# Redirecionamento automático para a pasta /public se mod_rewrite estiver ativo
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteCond %{REQUEST_URI} !^/public/
-  RewriteRule ^$ public/ [L,R=302]
-</IfModule>
-
 # Charset Padrão UTF-8
 AddDefaultCharset UTF-8
