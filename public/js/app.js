@@ -122,3 +122,27 @@ function showToast(message, type = 'info') {
         }
     }, 4000);
 }
+
+// Atualiza o Selo de Status do Banco de Dados e Registros Lidos no Topo
+function updateDbStatusBadge(driverType, fullDriverName, recordCount) {
+    const badge = document.getElementById('dbStatusBadge');
+    const driverTag = document.getElementById('dbDriverTag');
+    const driverName = document.getElementById('dbDriverName');
+    const recordCountEl = document.getElementById('dbRecordCount');
+
+    if (!badge || !driverTag || !driverName || !recordCountEl) return;
+
+    const isSqlite = (driverType || '').toUpperCase() === 'SQLITE';
+    const driverLabel = isSqlite ? 'SQLite' : 'MySQL';
+    
+    driverName.innerText = driverLabel;
+    driverTag.className = `db-driver-tag ${isSqlite ? 'sqlite' : 'mysql'}`;
+    
+    if (typeof recordCount === 'number') {
+        recordCountEl.innerText = formatNumber(recordCount);
+    }
+    
+    const driverDetails = fullDriverName || driverLabel;
+    const recordsFormatted = formatNumber(recordCount || 0);
+    badge.setAttribute('title', `Banco de Dados Ativo: ${driverDetails} | ${recordsFormatted} registros considerados na leitura`);
+}

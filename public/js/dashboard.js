@@ -27,6 +27,10 @@ async function loadFilterOptions() {
 
         if (!data.success) return;
 
+        if (data.db_type && typeof updateDbStatusBadge === 'function') {
+            updateDbStatusBadge(data.db_type, data.db_driver, data.total_db_records);
+        }
+
         // Popula Ano
         const selAno = document.getElementById('filterAno');
         if (selAno) {
@@ -160,6 +164,10 @@ async function loadDashboardData() {
                 console.error("Erro ao carregar dados:", data.error);
             }
             return;
+        }
+
+        if (data.db_type && data.kpis && typeof updateDbStatusBadge === 'function') {
+            updateDbStatusBadge(data.db_type, data.db_driver, data.kpis.total_candidatos);
         }
 
         renderKPIs(data.kpis);

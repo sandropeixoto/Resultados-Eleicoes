@@ -46,6 +46,17 @@
 
     <!-- Header Actions & Theme Switcher -->
     <div class="header-actions">
+      <div id="dbStatusBadge" class="db-status-badge" title="Status do Banco de Dados & Registros em Leitura" role="status" aria-live="polite">
+        <span id="dbDriverTag" class="db-driver-tag sqlite">
+          <i class="fas fa-database" aria-hidden="true"></i>
+          <span id="dbDriverName">Carregando...</span>
+        </span>
+        <span class="db-records-tag">
+          <i class="fas fa-layer-group" aria-hidden="true"></i>
+          <span id="dbRecordCount">0</span> reg.
+        </span>
+      </div>
+
       <button class="theme-toggle-btn" id="themeToggleBtn" aria-label="Alternar para Tema Clean" title="Alternar Tema">
         <i class="fas fa-sun" aria-hidden="true"></i>
       </button>

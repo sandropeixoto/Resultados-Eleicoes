@@ -364,8 +364,13 @@ try {
         ];
     }
 
+    $driverInUse = Database::getDriver();
+    $dbType = str_contains(strtolower($driverInUse), 'sqlite') ? 'SQLite' : 'MySQL';
+
     $response = [
         'success' => true,
+        'db_driver' => $driverInUse,
+        'db_type' => $dbType,
         'kpis' => [
             'total_votos' => (int)$kpiData['total_votos'],
             'total_candidatos' => (int)$kpiData['total_candidatos'],

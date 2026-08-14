@@ -10,7 +10,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/cache.php';
 
 try {
-    $cacheKey = 'options_distinct_v2';
+    $cacheKey = 'options_distinct_v3';
     $cached = Cache::get($cacheKey, 7200);
     if ($cached !== null) {
         header('X-Cache: HIT');
@@ -19,6 +19,9 @@ try {
     }
 
     $pdo = Database::getConnection();
+    $driverInUse = Database::getDriver();
+    $dbType = str_contains(strtolower($driverInUse), 'sqlite') ? 'SQLite' : 'MySQL';
+    $totalRecords = (int)$pdo->query("SELECT COUNT(*) FROM resultados_votacao")->fetchColumn();
 
     $anos = $pdo->query("SELECT DISTINCT `Ano` FROM resultados_votacao WHERE `Ano` IS NOT NULL ORDER BY `Ano` DESC")->fetchAll(PDO::FETCH_COLUMN);
     $municipios = $pdo->query("SELECT DISTINCT `nm_municipio` FROM resultados_votacao WHERE `nm_municipio` != '' ORDER BY `nm_municipio` ASC")->fetchAll(PDO::FETCH_COLUMN);
@@ -28,6 +31,9 @@ try {
 
     $response = [
         'success' => true,
+        'db_driver' => $driverInUse,
+        'db_type' => $dbType,
+        'total_db_records' => $totalRecords,
         'anos' => $anos,
         'municipios' => $municipios,
         'cargos' => $cargos,
