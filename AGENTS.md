@@ -2,8 +2,9 @@
 
 ## System Architecture
 Stack: Native PHP (no frameworks/composer), Vanilla JS (ES6+), Vanilla CSS, Dual DB (Remote MySQL srv24.prodns.com.br + Local SQLite db/eleicoes_fallback.sqlite fallback).
-Root: public/ (server docroot).
+Root Entry: Root `index.php` redirects to `public/`. Web server docroot: `public/`.
 Single Source Table: `resultados_votacao`. NEVER use or create `election_records`.
+Htaccess Rule: NEVER place `php_value` or `php_flag` in `.htaccess` (causes cPanel/PHP-FPM 500 Internal Server Errors).
 
 ## Critical Mirror Rule
 ANY edit to `public/api/<file>.php` MUST be replicated in root `api/<file>.php`. Adjust relative require paths (`__DIR__ . '/../../config/...'` vs `__DIR__ . '/../config/...'`).

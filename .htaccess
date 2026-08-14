@@ -3,31 +3,12 @@
 # Data Warehouse Eleitoral
 # =========================================================================
 
-# Aumenta limites de upload no PHP
-<IfModule mod_php7.c>
-  php_value upload_max_filesize 100M
-  php_value post_max_size 100M
-  php_value memory_limit 512M
-  php_value max_execution_time 300
-  php_value max_input_time 300
-  php_flag display_errors Off
-</IfModule>
-
-<IfModule mod_php.c>
-  php_value upload_max_filesize 100M
-  php_value post_max_size 100M
-  php_value memory_limit 512M
-  php_value max_execution_time 300
-  php_value max_input_time 300
-  php_flag display_errors Off
-</IfModule>
-
-# Redirecionamento automático para a pasta /public se acessado na raiz
+# Redirecionamento automático para a pasta /public se mod_rewrite estiver ativo
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteCond %{REQUEST_URI} !^/public/
-  RewriteRule ^(.*)$ public/$1 [L]
+  RewriteRule ^$ public/ [L,R=302]
 </IfModule>
 
-# Bloqueio de pastas de sistema e arquivos de configuração
-RedirectMatch 403 ^/(config|db|\.git|brain)/
+# Charset Padrão UTF-8
+AddDefaultCharset UTF-8

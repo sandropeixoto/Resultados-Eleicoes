@@ -2,26 +2,8 @@
 # CONFIGURAÇÃO DE SERVIDOR APACHE / CPANEL - DATA WAREHOUSE ELEITORAL
 # =========================================================================
 
-# 1. Configurações de Limite de Upload para Arquivos CSV Grandes (+100MB)
-<IfModule mod_php7.c>
-  php_value upload_max_filesize 100M
-  php_value post_max_size 100M
-  php_value memory_limit 512M
-  php_value max_execution_time 300
-  php_value max_input_time 300
-  php_flag display_errors Off
-  php_flag log_errors On
-</IfModule>
-
-<IfModule mod_php.c>
-  php_value upload_max_filesize 100M
-  php_value post_max_size 100M
-  php_value memory_limit 512M
-  php_value max_execution_time 300
-  php_value max_input_time 300
-  php_flag display_errors Off
-  php_flag log_errors On
-</IfModule>
+# 1. Charset Padrão UTF-8
+AddDefaultCharset UTF-8
 
 # 2. Segurança: Bloqueio de Arquivos Sensíveis
 <FilesMatch "\.(sql|sqlite|log|ini|md)$">
@@ -41,6 +23,3 @@
   ExpiresByType application/javascript "access plus 1 month"
   ExpiresByType image/x-icon "access plus 1 year"
 </IfModule>
-
-# 5. Charset Padrão UTF-8
-AddDefaultCharset UTF-8

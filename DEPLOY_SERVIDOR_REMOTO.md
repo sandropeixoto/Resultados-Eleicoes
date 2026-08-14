@@ -10,11 +10,14 @@ Os seguintes arquivos de servidor já foram criados e configurados na raiz e na 
 
 | Arquivo | Função no Servidor Remoto |
 | :--- | :--- |
-| [`.htaccess`](file:///C:/Dev/Resultados-Eleicoes/.htaccess) | Configura o Apache no cPanel para aceitar **uploads de até 100 MB**, ativa compressão GZIP, protege arquivos de configuração e redireciona acessos da raiz para a pasta `/public`. |
-| [`public/.htaccess`](file:///C:/Dev/Resultados-Eleicoes/public/.htaccess) | Garante o aumento dos limites no Apache dentro da pasta `/public` e bloqueia o download direto de bancos `.sqlite` ou `.sql`. |
-| [`.user.ini`](file:///C:/Dev/Resultados-Eleicoes/public/.user.ini) / [`php.ini`](file:///C:/Dev/Resultados-Eleicoes/php.ini) | Aplicável para servidores Nginx, PHP-FPM, SuPHP ou FastCGI no cPanel para elevar `upload_max_filesize = 100M` e `post_max_size = 100M`. |
-| [`db/schema.sql`](file:///C:/Dev/Resultados-Eleicoes/db/schema.sql) | Script SQL contendo as estruturas das tabelas `resultados_votacao` e `election_records` com os índices otimizados. |
-| [`config/database.php`](file:///C:/Dev/Resultados-Eleicoes/config/database.php) | Conexão PDO pré-configurada com as suas credenciais fornecidas. |
+| [`index.php`](file:///C:/Dev/Resultados-Eleicoes/index.php) | Entrada principal na raiz da hospedagem (`public_html/eleicoes/`). Redireciona automaticamente o navegador para a pasta `/public/`. |
+| [`.htaccess`](file:///C:/Dev/Resultados-Eleicoes/.htaccess) | Configura o Apache sem diretivas `php_value` incompatíveis (evitando erros 500) e garante o redirecionamento limpo para `/public/`. |
+| [`public/.htaccess`](file:///C:/Dev/Resultados-Eleicoes/public/.htaccess) | Ativa compressão GZIP, cache de arquivos estáticos e bloqueia download direto de arquivos `.sqlite`, `.sql` e `.log`. |
+| [`db/schema.sql`](file:///C:/Dev/Resultados-Eleicoes/db/schema.sql) | Script SQL contendo as estruturas da tabela `resultados_votacao` com os índices otimizados. |
+| [`config/database.php`](file:///C:/Dev/Resultados-Eleicoes/config/database.php) | Conexão PDO pré-configurada com as credenciais de produção. |
+
+> [!NOTE]
+> **Aviso sobre Limites PHP no cPanel (Erro 500)**: Servidores cPanel modernos usam PHP-FPM / LiteSpeed e disparam **Erro 500 (Internal Server Error)** se houver `php_value` ou `php_flag` dentro do `.htaccess`. Os limites de upload (`upload_max_filesize = 100M`, `post_max_size = 100M`, `memory_limit = 512M`) devem ser configurados na aba **Select PHP Version > Options** ou **MultiPHP INI Editor** do cPanel.
 
 ---
 
@@ -29,19 +32,19 @@ Os seguintes arquivos de servidor já foram criados e configurados na raiz e na 
 
 ## 📤 3. Envio dos Arquivos por FTP / Gerenciador de Arquivos
 
-1. Envie todos os arquivos do projeto para o diretório de hospedagem (geralmente `public_html` ou o subdomínio correspondente).
-2. Certifique-se de que os arquivos ocultos (como `.htaccess` e `.user.ini`) foram incluídos na transferência.
+1. Envie todos os arquivos do projeto para o diretório de hospedagem (`public_html/eleicoes/`).
+2. O arquivo [`index.php`](file:///C:/Dev/Resultados-Eleicoes/index.php) na raiz enviará o usuário diretamente para a pasta `/public/` sem travar o servidor.
 
 ---
 
 ## 🔑 4. Credenciais de Banco de Dados Ativas em `config/database.php`
 
-O arquivo [`config/database.php`](file:///C:/Dev/Resultados-Eleicoes/config/database.php) já está configurado com os seus dados de produção:
+O arquivo [`config/database.php`](file:///C:/Dev/Resultados-Eleicoes/config/database.php) está configurado com as credenciais de produção:
 
 ```php
 $config = new Config([
     'driver'   => 'mysql',
-    'address'  => 'localhost',
+    'address'  => 'srv24.prodns.com.br',
     'port'     => '3306',
     'username' => 'sspeixot_resultado_eleicoes',
     'password' => 'Senh@2026',
@@ -49,12 +52,10 @@ $config = new Config([
 ]);
 ```
 
-Caso precise alterar o endereço do servidor MySQL remoto (ex: se o banco estiver em um IP diferente de `localhost`), basta editar a linha `'address' => 'localhost'`.
-
 ---
 
 ## ✅ 5. Verificação Pós-Implantação
 
-1. Acesse a URL do seu site no navegador.
-2. Acesse a aba **Importar CSV** e envie o arquivo `exemplo.csv` ou o seu arquivo eleitoral volumoso.
-3. O sistema importará os dados e atualizará o Dashboard em tempo real sem estourar o limite de tamanho do PHP.
+1. Acesse a URL do seu site (`http://sspeixoto.com.br/eleicoes/`) no navegador.
+2. O sistema redirecionará para `public/` e carregará o Dashboard instantaneamente.
+3. Acesse a aba **Importar CSV** para carregar arquivos eleitorais volumosos em tempo real.
