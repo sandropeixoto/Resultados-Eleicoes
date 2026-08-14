@@ -1,0 +1,99 @@
+name: 🚀 Deploy via FTP
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.php'
+      - '**.css'
+      - '**.js'
+      - '**.sql'
+      - '.github/workflows/deploy.yml'
+
+jobs:
+  lint-and-validate:
+    name: 🔍 Lint & Validate
+    runs-on: ubuntu-latest
+    steps:
+    - name: 🚚 Get latest code
+      uses: actions/checkout@v4
+
+    - name: 🛠️ Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2' # Mantendo uma versão comum/estável
+        coverage: none
+
+    - name: 🔬 Lint PHP files
+      run: |
+        errors=0
+        for file in $(find . -name "*.php" -not -path "*/.*" -not -path "*/node_modules/*"); do
+          if ! php -l "$file" >/dev/null; then
+            php -l "$file" # Exibe o erro de sintaxe detalhado no log da Action
+            errors=$((errors+1))
+          fi
+        done
+        if [ $errors -ne 0 ]; then
+          echo "❌ Encontrado(s) $errors arquivo(s) PHP com erro(s) de sintaxe."
+          exit 1
+        else
+          echo "✅ Todos os arquivos PHP foram validados com sucesso!"
+        fi
+
+  web-deploy:
+    name: 🎉 Deploy
+    needs: lint-and-validate
+    runs-on: ubuntu-latest
+    steps:
+    - name: 🚚 Get latest code
+      uses: actions/checkout@v4
+    
+    - name: 📂 Sync files
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        # server: ftp.eventossefa.com.br
+        # username: eventossefa
+        server: ftp.sspeixoto.com.br
+        # username: sspeixot
+        # server: ftp.sindiclubespa.com.br
+        # username: eventos@sindiclubespa.com.br
+        password: ${{ secrets.FTP_PASSWORD }}
+        port: 21
+        server-dir: public_html/eleicoes/
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/.github*
+          **/.github*/**
+          **/.agent*
+          **/.agent*/**
+          **/.aiox-core*
+          **/.aiox-core*/**
+          **/.antigravity*
+          **/.antigravity*/**
+          **/.claude*
+          **/.claude*/**
+          **/.codex*
+          **/.codex*/**
+          **/.cursor*
+          **/.cursor*/**
+          **/node_modules/**
+          **/__pycache__/**
+          data/**
+          .gemini/**
+          plans/**
+          tests/**
+          docs/**
+          media/**
+          storage/**
+          *.py
+          *.bat
+          *.md
+          *.sql
+          *.yaml
+          *.yml
+          category_samples.json
+          **/.DS_Store
+          .env
+          .env.example
