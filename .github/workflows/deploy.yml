@@ -55,7 +55,7 @@ jobs:
         # server: ftp.eventossefa.com.br
         # username: eventossefa
         server: ftp.sspeixoto.com.br
-        # username: sspeixot
+        username: sspeixoto
         # server: ftp.sindiclubespa.com.br
         # username: eventos@sindiclubespa.com.br
         password: ${{ secrets.FTP_PASSWORD }}
