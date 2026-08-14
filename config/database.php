@@ -60,50 +60,58 @@ class Database {
         ];
 
         if ($driver === 'mysql') {
-            $hostsToTry = [$host, '127.0.0.1', 'localhost'];
+            $hostsToTry = array_unique([$host, '127.0.0.1', 'localhost']);
             
             foreach ($hostsToTry as $h) {
-                // Verificação ultra-rápida de soquete de 150ms para não travar o PHP se a porta 3306 remota estiver bloqueada por firewall
-                $fp = @fsockopen($h, $port, $errno, $errstr, 1.0);
+                // Verificação rápida de soquete de 200ms para evitar timeout em portas remotas bloqueadas
+                $fp = @fsockopen($h, $port, $errno, $errstr, 0.2);
                 if ($fp) {
                     fclose($fp);
                     try {
                         $dsn = "mysql:host={$h};port={$port};dbname={$dbname};charset=utf8mb4";
-                        $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET SESSION wait_timeout=600, interactive_timeout=600";
-                        self::$instance = new PDO($dsn, $user, $pass, $options);
+                        $mysqlOptions = $options;
+                        $mysqlOptions[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET SESSION wait_timeout=600, interactive_timeout=600";
+                        self::$instance = new PDO($dsn, $user, $pass, $mysqlOptions);
                         self::$driverInUse = 'mysql (' . $h . ')';
                         self::ensureTablesExist(self::$instance);
                         return self::$instance;
                     } catch (PDOException $e) {
-                        // Tenta o próximo host
+                        // Tenta próximo host
                     }
                 }
             }
 
-            // Fallback para SQLite local caso o MySQL esteja inacessível localmente
-            $sqliteFile = __DIR__ . '/../db/eleicoes_fallback.sqlite';
-            $dir = dirname($sqliteFile);
-            if (!is_dir($dir)) {
-                mkdir($dir, 0777, true);
-            }
-            self::$instance = new PDO("sqlite:" . $sqliteFile, null, null, [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            ]);
-            self::$instance->exec("PRAGMA synchronous = NORMAL;");
-            self::$instance->exec("PRAGMA journal_mode = WAL;");
-            self::$instance->exec("PRAGMA temp_store = MEMORY;");
-            
-            self::$driverInUse = 'sqlite';
-            self::ensureTablesExist(self::$instance);
-            return self::$instance;
+            // Fallback para SQLite local caso o MySQL esteja inacessível
+            return self::connectSqlite();
         } else {
-            $sqliteFile = __DIR__ . '/../db/eleicoes_fallback.sqlite';
-            self::$instance = new PDO("sqlite:" . $sqliteFile, null, null, $options);
-            self::$driverInUse = 'sqlite';
-            self::ensureTablesExist(self::$instance);
-            return self::$instance;
+            return self::connectSqlite();
         }
+    }
+
+    private static function connectSqlite(): PDO {
+        $sqliteFile = __DIR__ . '/../db/eleicoes_fallback.sqlite';
+        $dir = dirname($sqliteFile);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0777, true);
+        }
+        self::$instance = new PDO("sqlite:" . $sqliteFile, null, null, [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+            PDO::ATTR_TIMEOUT            => 5,
+        ]);
+        self::$instance->exec("PRAGMA synchronous = NORMAL;");
+        self::$instance->exec("PRAGMA journal_mode = WAL;");
+        self::$instance->exec("PRAGMA temp_store = MEMORY;");
+        
+        self::$driverInUse = 'sqlite';
+        self::ensureTablesExist(self::$instance);
+        return self::$instance;
+    }
+
+    public static function resetConnection(): void {
+        self::$instance = null;
+        self::$driverInUse = 'mysql';
     }
 
     public static function getDriver(): string {
@@ -138,9 +146,14 @@ class Database {
                 longitude REAL DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
-            CREATE INDEX IF NOT EXISTS idx_rv_votos ON resultados_votacao(qt_votos_nom_validos DESC);
+            CREATE INDEX IF NOT EXISTS idx_rv_ano ON resultados_votacao(Ano);
+            CREATE INDEX IF NOT EXISTS idx_rv_municipio ON resultados_votacao(nm_municipio);
+            CREATE INDEX IF NOT EXISTS idx_rv_partido ON resultados_votacao(sg_partido);
+            CREATE INDEX IF NOT EXISTS idx_rv_uf_muni ON resultados_votacao(sg_uf, nm_municipio);
+            CREATE INDEX IF NOT EXISTS idx_rv_cargo ON resultados_votacao(cd_cargo, ds_cargo);
+            CREATE INDEX IF NOT EXISTS idx_rv_situacao ON resultados_votacao(ds_sit_totalizacao);
             CREATE INDEX IF NOT EXISTS idx_rv_filter ON resultados_votacao(Ano, nm_municipio, ds_cargo, sg_partido);
-            CREATE INDEX IF NOT EXISTS idx_rv_ranking ON resultados_votacao(qt_votos_nom_validos DESC);
+            CREATE INDEX IF NOT EXISTS idx_rv_ranking ON resultados_votacao(qt_votos_nom_validos DESC, nm_urna_candidato ASC);
             CREATE INDEX IF NOT EXISTS idx_rv_search ON resultados_votacao(nm_urna_candidato, nm_candidato);
             ";
             $pdo->exec($sql);
@@ -150,15 +163,6 @@ class Database {
                 $sql = file_get_contents($sqlPath);
                 $pdo->exec($sql);
             }
-            try {
-                $pdo->exec("CREATE INDEX idx_filter_composite ON resultados_votacao (Ano, nm_municipio, ds_cargo, sg_partido)");
-            } catch (PDOException $e) {}
-            try {
-                $pdo->exec("CREATE INDEX idx_ranking_perf ON resultados_votacao (qt_votos_nom_validos DESC, nm_urna_candidato ASC)");
-            } catch (PDOException $e) {}
-            try {
-                $pdo->exec("CREATE INDEX idx_cand_search ON resultados_votacao (nm_urna_candidato, nm_candidato)");
-            } catch (PDOException $e) {}
         }
     }
 }

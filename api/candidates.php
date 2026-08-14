@@ -14,16 +14,30 @@ try {
     $pdo = Database::getConnection();
 
     if (strlen($q) < 2) {
-        echo json_encode(['success' => true, 'candidatos' => []]);
+        $stmt = $pdo->prepare("SELECT `id`, `nm_urna_candidato`, `nm_candidato`, `nr_candidato`, `sg_partido`, `nm_municipio`, `Ano`, `ds_cargo`, `qt_votos_nom_validos`, `pc_votos_validos`, `ds_sit_totalizacao`, `ds_composicao_coligacao` 
+                               FROM resultados_votacao 
+                               ORDER BY `qt_votos_nom_validos` DESC 
+                               LIMIT {$limit}");
+        $stmt->execute();
+        $candidatos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode(['success' => true, 'candidatos' => $candidatos], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
-    $stmt = $pdo->prepare("SELECT `id`, `nm_urna_candidato`, `nm_candidato`, `nr_candidato`, `sg_partido`, `nm_municipio`, `Ano`, `ds_cargo` 
+    $stmt = $pdo->prepare("SELECT `id`, `nm_urna_candidato`, `nm_candidato`, `nr_candidato`, `sg_partido`, `nm_municipio`, `Ano`, `ds_cargo`, `qt_votos_nom_validos`, `pc_votos_validos`, `ds_sit_totalizacao`, `ds_composicao_coligacao` 
                            FROM resultados_votacao 
-                           WHERE `nm_urna_candidato` LIKE :q OR `nm_candidato` LIKE :q OR `sg_partido` LIKE :q OR `nr_candidato` LIKE :q
+                           WHERE `nm_urna_candidato` LIKE :q1 OR `nm_candidato` LIKE :q2 OR `sg_partido` LIKE :q3 OR `nr_candidato` LIKE :q4 OR `nm_municipio` LIKE :q5
                            ORDER BY `qt_votos_nom_validos` DESC 
                            LIMIT {$limit}");
-    $stmt->execute([':q' => "%{$q}%"]);
+    $paramVal = "%{$q}%";
+    $stmt->execute([
+        ':q1' => $paramVal,
+        ':q2' => $paramVal,
+        ':q3' => $paramVal,
+        ':q4' => $paramVal,
+        ':q5' => $paramVal
+    ]);
     $candidatos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode(['success' => true, 'candidatos' => $candidatos], JSON_UNESCAPED_UNICODE);

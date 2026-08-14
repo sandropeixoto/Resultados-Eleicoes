@@ -102,7 +102,8 @@ function bindFilterEvents() {
     }
 
     let searchDebounceTimeout = null;
-    const searchInput = document.getElementById('searchInput');
+    // CORREÇÃO DE BUG: Alterado de 'searchInput' para 'filterSearch' para corresponder ao ID no public/index.php
+    const searchInput = document.getElementById('filterSearch');
     if (searchInput) {
         searchInput.addEventListener('input', () => {
             clearTimeout(searchDebounceTimeout);
@@ -115,12 +116,23 @@ function bindFilterEvents() {
     const btnReset = document.getElementById('btnResetFilters');
     if (btnReset) {
         btnReset.addEventListener('click', () => {
-            document.getElementById('filterAno').value = '';
+            const elAno = document.getElementById('filterAno');
+            if (elAno) elAno.value = '';
+            
             if (tomSelectMunicipio) tomSelectMunicipio.setValue('');
-            document.getElementById('filterCargo').value = '';
-            document.getElementById('filterPartido').value = '';
-            document.getElementById('filterSituacao').value = '';
-            document.getElementById('filterSearch').value = '';
+            
+            const elCargo = document.getElementById('filterCargo');
+            if (elCargo) elCargo.value = '';
+
+            const elPartido = document.getElementById('filterPartido');
+            if (elPartido) elPartido.value = '';
+
+            const elSit = document.getElementById('filterSituacao');
+            if (elSit) elSit.value = '';
+
+            const elSearch = document.getElementById('filterSearch');
+            if (elSearch) elSearch.value = '';
+
             loadDashboardData();
         });
     }
@@ -142,7 +154,11 @@ async function loadDashboardData() {
         const data = await res.json();
 
         if (!data.success) {
-            showToast('Erro ao atualizar dashboard: ' + (data.error || 'Desconhecido'), 'error');
+            if (typeof showToast === 'function') {
+                showToast('Erro ao atualizar dashboard: ' + (data.error || 'Desconhecido'), 'error');
+            } else {
+                console.error("Erro ao carregar dados:", data.error);
+            }
             return;
         }
 
@@ -158,12 +174,30 @@ async function loadDashboardData() {
     }
 }
 
-// Renderiza KPIs
+// Renderiza KPIs com métricas aprimoradas HHI & QE
 function renderKPIs(kpis) {
-    document.getElementById('kpiTotalVotos').innerText = formatNumber(kpis.total_votos);
-    document.getElementById('kpiTotalCandidatos').innerText = formatNumber(kpis.total_candidatos);
-    document.getElementById('kpiTotalMunicipios').innerText = formatNumber(kpis.total_municipios);
-    document.getElementById('kpiTotalPartidos').innerText = formatNumber(kpis.total_partidos);
+    if (!kpis) return;
+    const elVotos = document.getElementById('kpiTotalVotos');
+    if (elVotos) elVotos.innerText = formatNumber(kpis.total_votos);
+
+    const elCands = document.getElementById('kpiTotalCandidatos');
+    if (elCands) elCands.innerText = formatNumber(kpis.total_candidatos);
+
+    const elMunis = document.getElementById('kpiTotalMunicipios');
+    if (elMunis) elMunis.innerText = formatNumber(kpis.total_municipios);
+
+    const elParts = document.getElementById('kpiTotalPartidos');
+    if (elParts) elParts.innerText = formatNumber(kpis.total_partidos);
+
+    const elHHI = document.getElementById('kpiHHI');
+    if (elHHI && kpis.hhi !== undefined) {
+        elHHI.innerText = `${formatNumber(kpis.hhi)} pts (ENP: ${kpis.enp})`;
+    }
+
+    const elQE = document.getElementById('kpiQE');
+    if (elQE && kpis.qe !== undefined) {
+        elQE.innerText = `${formatNumber(kpis.qe)} / vaga`;
+    }
 }
 
 // Renderiza Tabela de Ranking
@@ -178,8 +212,8 @@ function renderRankingTable(ranking) {
 
     tbody.innerHTML = ranking.map((c, index) => {
         let badgeClass = 'badge-suplente';
-        if (c.ds_sit_totalizacao.includes('ELEITO')) badgeClass = 'badge-eleito';
-        else if (c.ds_sit_totalizacao.includes('NÃO ELEITO')) badgeClass = 'badge-nao-eleito';
+        if (c.ds_sit_totalizacao && c.ds_sit_totalizacao.includes('ELEITO')) badgeClass = 'badge-eleito';
+        else if (c.ds_sit_totalizacao && c.ds_sit_totalizacao.includes('NÃO ELEITO')) badgeClass = 'badge-nao-eleito';
 
         return `
             <tr>
@@ -198,13 +232,24 @@ function renderRankingTable(ranking) {
     }).join('');
 }
 
-// Renderiza Gráfico de Rosca por Partido
+// Renderiza Gráfico de Rosca por Partido (Garante destruição total de instâncias anteriores)
 function renderPartyChart(partyVotes) {
-    const ctx = document.getElementById('chartPartyCanvas')?.getContext('2d');
-    if (!ctx) return;
+    const canvasEl = document.getElementById('chartPartyCanvas');
+    if (!canvasEl) return;
 
-    if (chartParty) chartParty.destroy();
+    // Destrói qualquer instância do Chart.js associada ao elemento canvas
+    if (window.Chart && typeof Chart.getChart === 'function') {
+        const existingChart = Chart.getChart(canvasEl);
+        if (existingChart) existingChart.destroy();
+    }
+    if (chartParty) {
+        chartParty.destroy();
+        chartParty = null;
+    }
 
+    if (!partyVotes || partyVotes.length === 0) return;
+
+    const ctx = canvasEl.getContext('2d');
     const labels = partyVotes.slice(0, 8).map(p => p.party);
     const data = partyVotes.slice(0, 8).map(p => p.votes);
 
@@ -222,7 +267,7 @@ function renderPartyChart(partyVotes) {
                     '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'
                 ],
                 borderWidth: 2,
-                borderColor: isDark ? '#131b2e' : '#ffffff'
+                borderColor: isDark ? '#111827' : '#ffffff'
             }]
         },
         options: {
@@ -238,13 +283,23 @@ function renderPartyChart(partyVotes) {
     });
 }
 
-// Renderiza Gráfico de Tendência Histórica
+// Renderiza Gráfico de Tendência Histórica (Garante destruição total de instâncias anteriores)
 function renderTrendChart(historicTrend) {
-    const ctx = document.getElementById('chartTrendCanvas')?.getContext('2d');
-    if (!ctx) return;
+    const canvasEl = document.getElementById('chartTrendCanvas');
+    if (!canvasEl) return;
 
-    if (chartTrend) chartTrend.destroy();
+    if (window.Chart && typeof Chart.getChart === 'function') {
+        const existingChart = Chart.getChart(canvasEl);
+        if (existingChart) existingChart.destroy();
+    }
+    if (chartTrend) {
+        chartTrend.destroy();
+        chartTrend = null;
+    }
 
+    if (!historicTrend || historicTrend.length === 0) return;
+
+    const ctx = canvasEl.getContext('2d');
     const labels = historicTrend.map(t => `Ano ${t.Ano}`);
     const data = historicTrend.map(t => t.total_votos);
 
@@ -282,13 +337,23 @@ function renderTrendChart(historicTrend) {
     });
 }
 
-// Renderiza Gráfico de Situação em Coluna Única Full Width
+// Renderiza Gráfico de Situação (Garante destruição total de instâncias anteriores)
 function renderSituationChart(situationBreakdown) {
-    const ctx = document.getElementById('chartSituationCanvas')?.getContext('2d');
-    if (!ctx) return;
+    const canvasEl = document.getElementById('chartSituationCanvas');
+    if (!canvasEl) return;
 
-    if (chartSituation) chartSituation.destroy();
+    if (window.Chart && typeof Chart.getChart === 'function') {
+        const existingChart = Chart.getChart(canvasEl);
+        if (existingChart) existingChart.destroy();
+    }
+    if (chartSituation) {
+        chartSituation.destroy();
+        chartSituation = null;
+    }
 
+    if (!situationBreakdown || situationBreakdown.length === 0) return;
+
+    const ctx = canvasEl.getContext('2d');
     const labels = situationBreakdown.map(s => s.ds_sit_totalizacao);
     const data = situationBreakdown.map(s => s.total);
 
@@ -324,24 +389,30 @@ function renderSituationChart(situationBreakdown) {
     });
 }
 
+// Formatador auxiliar de marcação markdown simples (**texto**)
+function formatMarkdown(text) {
+    if (!text) return '';
+    return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+}
+
 // Renderiza Insights Estratégicos de Campanha
 function renderStrategicInsights(insights) {
     const container = document.getElementById('strategicInsightsContainer');
     if (!container) return;
 
     if (!insights || insights.length === 0) {
-        container.innerHTML = `<div style="color: var(--text-muted);">Sem insights suficientes para os filtros selecionados.</div>`;
+        container.innerHTML = `<div style="color: var(--text-muted); padding: 1.5rem; text-align: center;">Sem insights suficientes para os filtros selecionados.</div>`;
         return;
     }
 
     container.innerHTML = insights.map(i => `
-        <div class="insight-card ${i.type}">
+        <div class="insight-card ${i.type || 'default'}">
             <div class="insight-header">
-                <span class="insight-badge">${i.badge}</span>
+                <span class="insight-badge">${i.badge || 'Insight Estratégico'}</span>
             </div>
             <div class="insight-title">${i.title}</div>
-            <div class="insight-message">${i.message}</div>
-            <div class="insight-action"><i class="fas fa-lightbulb"></i> ${i.action}</div>
+            <div class="insight-message">${formatMarkdown(i.message)}</div>
+            <div class="insight-action"><i class="fas fa-lightbulb"></i> ${formatMarkdown(i.action)}</div>
         </div>
     `).join('');
 }

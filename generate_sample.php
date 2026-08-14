@@ -1,23 +1,33 @@
 <?php
 /**
  * Data Warehouse Eleitoral - Gerador & Semeador de Dados baseado em exemplo.csv
- * v2.0 - Usa generateElectionId() centralizado e elimina election_records
+ * v2.0 - Usa generateElectionId() centralizado, Cache::clear() e elimina election_records
  */
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/config/cache.php';
 
 /**
  * Gera ID determinístico e estável para registros eleitorais.
  * Replica exatamente a mesma lógica de public/api/import.php
  */
 function generateElectionId(string $uf, string $municipio, int $ano, int $turno, int $cargo, int $candidato, int $rowIndex = 0): string {
+    $slugMuni = '';
     if (function_exists('transliterator_transliterate')) {
-        $slugMuni = transliterator_transliterate('Any-Latin; Latin-ASCII; Lower()', $municipio);
+        $trans = transliterator_transliterate('Any-Latin; Latin-ASCII; Lower()', $municipio);
+        $slugMuni = is_string($trans) ? $trans : strtolower($municipio);
     } else {
-        $slugMuni = strtolower(iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $municipio));
+        $trans = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $municipio);
+        $slugMuni = is_string($trans) ? strtolower($trans) : strtolower($municipio);
     }
     $slugMuni = preg_replace('/[^a-z0-9]/', '', $slugMuni);
-    $slugUf = strtolower($uf);
+    if ($slugMuni === '') {
+        $slugMuni = 'geral';
+    }
+    $slugUf = strtolower(trim($uf));
+    if ($slugUf === '') {
+        $slugUf = 'pa';
+    }
     
     $id = "{$ano}_{$slugUf}_{$slugMuni}_{$cargo}_{$candidato}_{$turno}";
     
@@ -52,7 +62,15 @@ if (!file_exists($csvPath)) {
 }
 
 $handle = fopen($csvPath, 'r');
+if (!$handle) {
+    die("Erro: Falha ao abrir arquivo exemplo.csv.\n");
+}
+
 $firstLine = fgets($handle);
+if ($firstLine === false) {
+    fclose($handle);
+    die("Erro: Arquivo exemplo.csv está vazio.\n");
+}
 rewind($handle);
 
 $delimiter = ";";
@@ -60,7 +78,12 @@ if (substr_count($firstLine, "\t") > substr_count($firstLine, ';')) {
     $delimiter = "\t";
 }
 
-$rawHeader = fgetcsv($handle, 0, $delimiter);
+$rawHeader = fgetcsv($handle, 0, $delimiter, '"', '\\');
+if (!is_array($rawHeader)) {
+    fclose($handle);
+    die("Erro: Cabeçalho inválido no arquivo CSV.\n");
+}
+
 $header = array_map(function($col) {
     $col = preg_replace('/\x{EF}\x{BB}\x{BF}/', '', $col);
     if (!mb_check_encoding($col, 'UTF-8')) {
@@ -139,6 +162,7 @@ while (($row = fgetcsv($handle, 0, $delimiter, '"', '\\')) !== false) {
 
     $qtVotosRaw = $getVal('qt_votos_nom_validos', '0');
     $qtConcRaw = $getVal('qt_votos_concorrentes', '0');
+    $dsColigacaoVal = $getVal('ds_composicao_coligacao', '');
 
     $record = [
         ':id'                       => $id,
@@ -150,7 +174,7 @@ while (($row = fgetcsv($handle, 0, $delimiter, '"', '\\')) !== false) {
         ':nm_candidato'             => $nmCandVal,
         ':nm_urna_candidato'        => $getVal('nm_urna_candidato') !== '' ? $getVal('nm_urna_candidato') : $nmCandVal,
         ':sg_partido'               => strtoupper($getVal('sg_partido', 'PARTIDO')),
-        ':ds_composicao_coligacao'  => $getVal('ds_composicao_coligacao', '') ?: null,
+        ':ds_composicao_coligacao'  => $dsColigacaoVal !== '' ? $dsColigacaoVal : null,
         ':nr_turno'                 => $nrTurnoVal,
         ':ds_sit_totalizacao'       => strtoupper($getVal('ds_sit_totalizacao', 'ELEITO')),
         ':nm_tipo_destinacao_votos' => strtoupper($getVal('nm_tipo_destinacao_votos', 'VÁLIDO')),
@@ -169,5 +193,8 @@ while (($row = fgetcsv($handle, 0, $delimiter, '"', '\\')) !== false) {
 
 $pdo->commit();
 fclose($handle);
+
+// Limpa o cache após a gravação dos dados no banco
+Cache::clear();
 
 echo "Semeação concluída! {$inserted} registros importados de exemplo.csv com IDs determinísticos.\n";
